@@ -1,0 +1,10 @@
+Test summary:
+ Accuracy: 0.11%
+ Correct/Total: 1/888
+ Skipped images (no GT or error): 0
+ Average inference time (per image): 0.0085 sec
+ Inaccuracy breakdown:
+ No prediction: 282
+ Wrong label (IoU>=threshold but class mismatch): 337
+ Localization error (same class but IoU < threshold): 0
+ No overlap (predictions do not overlap GT): 268

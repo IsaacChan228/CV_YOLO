@@ -1,4 +1,19 @@
+# Core dependencies
 ultralytics
 opencv-python
 numpy
 tqdm
+
+# PyTorch / torchvision
+# IMPORTANT: install a CUDA-enabled PyTorch wheel that matches your system GPU driver/CUDA version.
+# Do NOT rely solely on `pip install torch` if you need GPU support ¡X that may install a CPU-only build.
+# Examples (run these in the activated .venv):
+# CUDA12.9:
+# pip install torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu129
+# CUDA13.0:
+# pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu130
+# If you don't know which CUDA to use, run `nvidia-smi` and then visit https://pytorch.org/get-started/locally/ to get the correct command.
+
+# Minimum versions (kept for pip-tools / installers). Replace with the proper CUDA-enabled wheel command above.
+torch>=2.0.0
+torchvision>=0.15.0
