@@ -1,0 +1,18 @@
+The objective of this code is to train a YOLOv8n model for image recognition 
+
+There is 3 python file in this repository, and is for different purpose
+
+"CV_training.py" is to train the yolov8n model.
+the code will first load a COCO-pretrained YOLOv8n model, and place a copy of original model in folder "model_original"
+after that, it will perform training using the training data placed in folder "training data"
+the trained model will be exported to folder "model" for use
+
+"CV_testing.py" is to test the yolov8n model.
+The code will use the testing data in folder "test_data" to test the accuracy of the model
+the code will also test the model efficiency in terms of time used for inference
+
+"CV_prediction.py" is to use the yolov8n model in deployment.
+In final deployment, only the model and this code will be provided.
+The user will provide an image. the model will perform image recognition, and output a list of possible labels with their respective possibilities
+
+The package that is needed to be installed should be placed in requirement.txt
