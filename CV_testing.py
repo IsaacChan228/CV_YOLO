@@ -6,11 +6,11 @@ import warnings
 
 ### Global configuration ###
 # Set to True to use origin model weight for testing
-USE_ORIGINAL = False
+USE_ORIGINAL = True
 
 # Confidence threshold for single-image prediction
-CONF_THRESH = 0.25
-IOU_THRESHOLD = 0.5
+CONF_THRESH =0.25
+IOU_THRESHOLD =0.4
 
 # Folder locations
 DATA_YAML = os.path.join(os.getcwd(), 'training_data', 'grocery', 'data.yaml')
@@ -55,17 +55,17 @@ def load_gt_boxes(label_path, img_w, img_h):
                 if not line:
                     continue
                 parts = line.split()
-                if len(parts) < 5:
+                if len(parts) <5:
                     continue
                 cls = int(float(parts[0]))
                 xc = float(parts[1]) * img_w
                 yc = float(parts[2]) * img_h
                 bw = float(parts[3]) * img_w
                 bh = float(parts[4]) * img_h
-                x1 = xc - bw / 2.0
-                y1 = yc - bh / 2.0
-                x2 = xc + bw / 2.0
-                y2 = yc + bh / 2.0
+                x1 = xc - bw /2.0
+                y1 = yc - bh /2.0
+                x2 = xc + bw /2.0
+                y2 = yc + bh /2.0
                 boxes.append((cls, (x1, y1, x2, y2)))
     except Exception:
         return []
@@ -82,13 +82,13 @@ def iou(boxA, boxB):
     interH = max(0.0, yB - yA)
     interArea = interW * interH
 
-    if interArea == 0:
+    if interArea ==0:
         return 0.0
 
     boxAArea = max(0.0, (boxA[2] - boxA[0])) * max(0.0, (boxA[3] - boxA[1]))
     boxBArea = max(0.0, (boxB[2] - boxB[0])) * max(0.0, (boxB[3] - boxB[1]))
     union = boxAArea + boxBArea - interArea
-    if union <= 0:
+    if union <=0:
         return 0.0
     return interArea / union
 
@@ -129,13 +129,13 @@ def main():
                 # common keys to check
                 for k in ('map50', 'mAP50', 'mAP_50', 'map_50'):
                     if k in val_res:
-                        accuracy_pct = float(val_res[k]) * 100.0
+                        accuracy_pct = float(val_res[k]) *100.0
                         break
                 # sometimes nested
                 if accuracy_pct is None and 'metrics' in val_res and isinstance(val_res['metrics'], dict):
                     for k, v in val_res['metrics'].items():
                         if 'map' in k.lower() and v is not None:
-                            accuracy_pct = float(v) * 100.0
+                            accuracy_pct = float(v) *100.0
                             break
             # If we couldn't extract, set to None and continue
         except Exception:
@@ -150,27 +150,30 @@ def main():
         return
 
     times = []
-    correct_images = 0
-    skipped = 0
-    processed = 0
+    correct_images =0
+    skipped =0
+    processed =0
 
     # Counters for inaccuracy breakdown
-    no_prediction = 0
-    wrong_label = 0
-    localization_error = 0
-    no_overlap = 0
+    no_prediction =0
+    wrong_label =0
+    localization_error =0
+    no_overlap =0
+
+    # collect wrong-label entries for logging
+    wrong_label_entries = []
 
     for p in imgs:
         img = cv2.imread(p)
         if img is None:
-            skipped += 1
+            skipped +=1
             continue
         h, w = img.shape[:2]
         t0 = time.time()
         try:
             res = model.predict(source=p, conf=CONF_THRESH, verbose=False, save=False)
         except Exception:
-            skipped += 1
+            skipped +=1
             continue
         t1 = time.time()
         times.append(t1 - t0)
@@ -195,7 +198,7 @@ def main():
                             xy = box.xyxyn.cpu().numpy() * [w, h, w, h]
                         if xy is not None:
                             # xy could be shape (4,) or (1,4)
-                            if xy.ndim == 2:
+                            if xy.ndim ==2:
                                 xy = xy[0]
                             x1, y1, x2, y2 = float(xy[0]), float(xy[1]), float(xy[2]), float(xy[3])
                             preds.append((cls, (x1, y1, x2, y2)))
@@ -211,10 +214,10 @@ def main():
 
         # if no GT available, skip image from correctness calculation
         if not gt_boxes:
-            skipped += 1
+            skipped +=1
             continue
 
-        processed += 1
+        processed +=1
         # determine if image is correct: exists a pred and gt with same class and IoU >= IOU_THRESHOLD
         image_correct = False
         for p_cls, p_box in preds:
@@ -229,14 +232,14 @@ def main():
             if image_correct:
                 break
         if image_correct:
-            correct_images += 1
+            correct_images +=1
         else:
             # classify reason for inaccuracy for this image
             if not preds:
-                no_prediction += 1
+                no_prediction +=1
             else:
                 # compute max iou and check types of mismatches
-                max_iou = 0.0
+                max_iou =0.0
                 best_pred_cls = None
                 best_gt_cls = None
                 same_class_any = False
@@ -252,13 +255,18 @@ def main():
                         if p_cls == gt_cls:
                             same_class_any = True
                 if max_iou >= IOU_THRESHOLD and best_pred_cls is not None and best_gt_cls is not None and best_pred_cls != best_gt_cls:
-                    wrong_label += 1
+                    wrong_label +=1
+                    # log details for wrong-label case
+                    # collect all GT classes and predicted classes for the image
+                    gt_classes = sorted({gt for gt, _ in gt_boxes})
+                    pred_classes = sorted({p for p, _ in preds if p is not None})
+                    wrong_label_entries.append(f"{base}: wrong label - correct: {gt_classes}, prediction: {pred_classes}")
                 elif same_class_any:
                     # predictions with same class exist but IoU too low
-                    localization_error += 1
+                    localization_error +=1
                 else:
                     # predictions exist but no overlap with GT
-                    no_overlap += 1
+                    no_overlap +=1
 
     total_images = processed
     avg_time = sum(times) / len(times) if times else 0.0
@@ -266,8 +274,8 @@ def main():
     # Prepare concise summary lines
     lines = []
     lines.append('Test summary:')
-    if total_images > 0:
-        accuracy = (correct_images / total_images) * 100.0
+    if total_images >0:
+        accuracy = (correct_images / total_images) *100.0
         lines.append(f' Accuracy: {accuracy:.2f}%')
         lines.append(f' Correct/Total: {correct_images}/{total_images}')
     else:
@@ -295,6 +303,16 @@ def main():
         print(f'Summary saved to: {out_path}')
     except Exception as e:
         warnings.warn(f'Failed to write summary file: {e}')
+
+    # Save wrong-label log entries if any
+    if wrong_label_entries:
+        try:
+            log_path = os.path.join(script_dir, 'wrong_label_log.txt')
+            with open(log_path, 'w', encoding='utf-8') as lf:
+                lf.write('\n'.join(wrong_label_entries) + '\n')
+            print(f'Wrong-label log saved to: {log_path}')
+        except Exception as e:
+            warnings.warn(f'Failed to write wrong-label log: {e}')
 
 
 if __name__ == '__main__':

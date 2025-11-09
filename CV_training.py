@@ -17,7 +17,7 @@ DATA_YAML = os.path.join(os.getcwd(), 'training_data/grocery', 'data.yaml')
 
 # Training parameters and Image size
 EPOCHS =50
-BATCH =16
+BATCH =8
 IMGSZ =640
 
 # Maximum VRAM to allow this process to use (in GB). Set to None to disable cap.
@@ -117,6 +117,7 @@ def main():
         warnings.warn(f"Failed to move model to {device}: {e}. The model may still run on CPU or default device.")
 
     # Backup original weights only when not post-training
+    backup_path = None
     if not EX_POST_TRAIN:
         backup_dir = os.path.join(os.getcwd(), 'model_original')
         ensure_dir(backup_dir)
@@ -156,6 +157,25 @@ def main():
         train_kwargs["device"] = device
 
     model.train(**train_kwargs)
+
+    # Cleanup downloaded pretrained file in repo root if it was automatically downloaded
+    try:
+        # Candidate file in cwd with same basename as PRETRAINED
+        cwd_candidate = os.path.join(os.getcwd(), os.path.basename(PRETRAINED))
+        # Remove it if it exists, is a file, and is not the same as the backup nor the used src_pretrained
+        if os.path.exists(cwd_candidate) and os.path.isfile(cwd_candidate):
+            # compare absolute paths to avoid accidental deletion
+            abs_cwd_candidate = os.path.abspath(cwd_candidate)
+            abs_backup = os.path.abspath(backup_path) if backup_path else None
+            abs_src = os.path.abspath(src_pretrained) if os.path.isabs(src_pretrained) else None
+            if abs_cwd_candidate != abs_backup and (abs_src is None or abs_cwd_candidate != abs_src):
+                try:
+                    os.remove(cwd_candidate)
+                    print(f'Removed downloaded pretrained file from cwd: {cwd_candidate}')
+                except Exception as e:
+                    warnings.warn(f'Failed to remove downloaded pretrained file {cwd_candidate}: {e}')
+    except Exception as e:
+        warnings.warn(f'Error during cleanup of downloaded pretrained file: {e}')
 
     weights_best = os.path.join(project_dir, 'exp', 'weights', 'best.pt')
     weights_last = os.path.join(project_dir, 'exp', 'weights', 'last.pt')
